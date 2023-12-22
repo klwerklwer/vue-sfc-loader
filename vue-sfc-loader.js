@@ -210,16 +210,17 @@
 				const clone_load_config = load_config.clone()
 				clone_load_config.alias = alias
 
-				const cmp = this.load( path , clone_load_config )
+				let res = this.load( path , clone_load_config ),
+				cmp = globalVue().defineAsyncComponent( res )
 
 				if( is_vue_app ){
-					app.component( cmp.name, globalVue().defineAsyncComponent( cmp ) )
+					app.component( res.name, cmp )
 				}
 				else{
 					if( !app.components ){
 						app.components = {}
 					}
-					app.components[ cmp.name ] = cmp
+					app.components[ res.name ] = cmp
 				}
 			}
 		}
