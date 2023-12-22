@@ -57,9 +57,9 @@ console.log( baseUrl )
 //index.js
 const { createApp } = Vue
 const app = createApp({
-	components : {
-		MyComponent : vueSfcLoader.load(url)
-	},
+components : {
+MyComponent : vueSfcLoader.load(url)
+},
 })
 app.component(
 	// 注册的名字
