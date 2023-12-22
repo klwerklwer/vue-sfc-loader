@@ -3,7 +3,7 @@
 
 灵感来源于这位大佬的 [FranckFreiburger/http-vue-loader](https://github.com/FranckFreiburger/http-vue-loader) 项目，感谢大佬[FranckFreiburger](https://github.com/FranckFreiburger)  
 
-前置环境  
+## 前置环境  
 es2020，非module模式  
 Vue3 编译版本 (compiler and runtime)  
 不支持Vue2，你可以魔改，但是这样的化我建议你还是用上面大佬的版本
