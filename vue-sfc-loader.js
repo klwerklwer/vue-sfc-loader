@@ -213,7 +213,7 @@
 				const cmp = this.load( path , clone_load_config )
 
 				if( is_vue_app ){
-					app.component( cmp.name, cmp )
+					app.component( cmp.name, globalVue().defineAsyncComponent( cmp ) )
 				}
 				else{
 					if( !app.components ){
