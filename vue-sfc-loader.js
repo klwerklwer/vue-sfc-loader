@@ -178,7 +178,7 @@
 			}
 
 			//为了可以直接use
-			return_.install = ( app , options )=>{
+			return_.install = ( app )=>{
 				if( globalVue() ){
 					app.component( component_name , globalVue().defineAsyncComponent( return_ ) )
 				}
@@ -197,9 +197,9 @@
 			LoadConfig.setValues( load_config , options )
 
 			for( let item of path_array ){
-				let path , alias
+				let path , alias = ''
 				if( Array.isArray( item ) ){
-					[ path , alias ] = item
+					[ path , alias = '' ] = item
 				}
 				else{
 					path = item
