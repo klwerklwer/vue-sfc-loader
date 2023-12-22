@@ -6,7 +6,7 @@
 前置环境  
 es2020，非module模式  
 Vue3 编译版本 (compiler and runtime)  
-Vue2 还没测试过,理论可以  
+不支持Vue2，你可以魔改，但是这样的化我建议你还是用上面大佬的版本
 
 
 ## 全局变量 `vueSfcLoader` 提供两个方法  
@@ -26,8 +26,7 @@ Vue2 还没测试过,理论可以
   	//组件请求用的
   	baseUrl : '',
   	//组件的别名，等同于重命名
-  	alias : '',
-  	vue : null,
+  	alias : ''
 }
 ```
 **vueSfcLoader.setConfig(`options` :object)**  
