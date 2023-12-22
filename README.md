@@ -21,13 +21,13 @@ Vue2 还没测试过,理论可以
 `options`是可选参数，以下是默认的
 ```javascript
 {
-  //预加载组件
-  preload : true,
-  //组件请求用的
-  baseUrl : '',
-  //组件的别名，等同于重命名
-  alias : '',
-  vue : null,
+	//预加载组件
+	preload : true,
+  	//组件请求用的
+  	baseUrl : '',
+  	//组件的别名，等同于重命名
+  	alias : '',
+  	vue : null,
 }
 ```
 **vueSfcLoader.setConfig(`options` :object)**  
@@ -57,15 +57,15 @@ console.log( baseUrl )
 //index.js
 const { createApp } = Vue
 const app = createApp({
-  components : {
-    MyComponent : vueSfcLoader.load(url)
-  },
+	components : {
+    	MyComponent : vueSfcLoader.load(url)
+  	},
 })
 app.component(
-  // 注册的名字
-  'MyComponent',
-  // 组件的实现
-  vueSfcLoader.load(url)
+	// 注册的名字
+  	'MyComponent',
+  	// 组件的实现
+  	vueSfcLoader.load(url)
 )
 ```
 
