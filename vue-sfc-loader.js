@@ -11,8 +11,6 @@
 			this.baseUrl = ''
 			//组件别名 重命名
 			this.alias = ''
-			//vue
-			this.vue = null
 			this.constructor.setValues( this , values )
 		}
 		/**
@@ -38,6 +36,10 @@
 
 	//全局默认加载配置
 	const globalConfig = new LoadConfig
+
+	function globalVue(){
+		return globalThis.Vue
+	}
 
 	//本体
 	globalThis.vueSfcLoader = new class{
@@ -69,6 +71,7 @@
 			}
 			//完整资源路径
 			const uri = baseUrl + url + urn + query_params
+			const component_name = load_config.alias || urn.substring( 0 , urn.length - 4 )
 	
 			/**
 			 * 加载器
@@ -143,45 +146,68 @@
 				//template
 				const template_elt = doc.querySelector( 'template' )
 				if( template_elt && template_elt.innerHTML.trim() ){
-					//如果配置
-					if( load_config.vue?.compile ){
-						component_data.render = load_config.vue.compile( template_elt.innerHTML )
+					//如果获取的到Vue
+					if( globalVue() ){
+						component_data.render = globalVue().compile( template_elt.innerHTML )
 					}
 					else{
 						component_data.template = template_elt.innerHTML
 					}
 				}
-	
-				await script_promise
-				
-				if( load_config.alias ){
-					component_data.name = load_config.alias
-				}
-				else if( !component_data.name ){
-					component_data.name = urn.substring( 0 , urn.length - 4 )
-				}
 
-				//为了方便调试给style_elt加上标识,如果不需要标识可以把此段代码移到 script_promise 之前
+				//style
 				const style_elt = doc.querySelector( 'style' )
 				if( style_elt && style_elt.textContent.trim() ){
 					document.head.append( style_elt )
 					if( !style_elt.id ){
-						style_elt.id = "async_" + component_data.name + "_style"
+						style_elt.id = "async_" + component_name + "_style"
 					}
 				}
+				await script_promise
+
 				return component_data
 			}
-	
+
+			let return_ = {}
 			if( load_config.preload ){
 				loader = loader()
-				return {
-					loader(){ return loader }
+				return_.loader = ()=> loader
+			}
+			else{
+				return_.loader = loader
+			}
+
+			//为了可以直接use
+			return_.install = ( app , options )=>{
+				if( globalVue() ){
+					app.component( component_name , globalVue().defineAsyncComponent( return_ ) )
 				}
 			}
-			return { loader }
+			return return_
 		}
 		setConfig( options ){
 			LoadConfig.setValues( globalConfig , options )
+		}
+		regComps( app , path_array , options = {}){
+			if( !globalVue() ){
+				return
+			}
+
+			const load_config = globalConfig.clone()
+			LoadConfig.setValues( load_config , options )
+
+			for( let item of path_array ){
+				let path , alias
+				if( Array.isArray( item ) ){
+					[ path , alias ] = item
+				}
+				else{
+					path = item
+				}
+				const clone_load_config = load_config.clone()
+				clone_load_config.alias = alias
+				app.use( this.load( path , clone_load_config ) )
+			}
 		}
 	}
 })()
