@@ -168,7 +168,9 @@
 				return component_data
 			}
 
-			let return_ = {}
+			let return_ = {
+				name : component_name ,
+			}
 			if( load_config.preload ){
 				loader = loader()
 				return_.loader = ()=> loader
@@ -193,6 +195,7 @@
 				return
 			}
 
+			const is_vue_app = app.component instanceof Function
 			const load_config = globalConfig.clone()
 			LoadConfig.setValues( load_config , options )
 
@@ -206,7 +209,18 @@
 				}
 				const clone_load_config = load_config.clone()
 				clone_load_config.alias = alias
-				app.use( this.load( path , clone_load_config ) )
+
+				const cmp = this.load( path , clone_load_config )
+
+				if( is_vue_app ){
+					app.component( cmp.name, cmp )
+				}
+				else{
+					if( !app.components ){
+						app.components = {}
+					}
+					app.components[ cmp.name ] = cmp
+				}
 			}
 		}
 	}
