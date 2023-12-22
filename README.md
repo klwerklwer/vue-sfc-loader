@@ -53,19 +53,19 @@ module.exports = {
 console.log( baseUrl )
 </script>
 ```
-```script
+```javascript
 //index.js
 const { createApp } = Vue
 const app = createApp({
 	components : {
-    	MyComponent : vueSfcLoader.load(url)
-  	},
+		MyComponent : vueSfcLoader.load(url)
+	},
 })
 app.component(
 	// 注册的名字
-  	'MyComponent',
-  	// 组件的实现
-  	vueSfcLoader.load(url)
+	'MyComponent',
+	// 组件的实现
+	vueSfcLoader.load(url)
 )
 ```
 
