@@ -57,15 +57,16 @@ console.log( baseUrl )
 const { createApp } = Vue
 const app = createApp({
 components : {
-        MyComponent : vueSfcLoader.load(url)
+        MyComponent : Vue.defineAsyncComponent(vueSfcLoader.load(url))
     },
 })
 app.component(
 	// 注册的名字
 	'MyComponent',
 	// 组件的实现
-	vueSfcLoader.load(url)
+	Vue.defineAsyncComponent( vueSfcLoader.load(url) )
 )
+app.use( vueSfcLoader.load(url) )
 ```
 
 ## 其他
