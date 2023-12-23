@@ -17,8 +17,10 @@
 		 * 
 		 * @returns {LoadConfig}
 		 */
-		clone(){
-			return new this.constructor( this )
+		clone( values = {} ){
+			const ret = new this.constructor( this )
+			this.constructor.setValues( ret , values )
+			return ret 
 		}
 		/**
 		 * 
@@ -51,8 +53,7 @@
 		 */
 		load( path , options = {}){
 			//配置初始化
-			const load_config = globalConfig.clone()
-			LoadConfig.setValues( load_config , options )
+			const load_config = globalConfig.clone( options )
 
 			//解析
 			let url = path.match( /^.*\//g )?.[0] ?? ''
@@ -178,27 +179,13 @@
 			else{
 				return_.loader = loader
 			}
-
-			//为了可以直接use
-			return_.install = ( app )=>{
-				if( globalVue() ){
-					app.component( component_name , globalVue().defineAsyncComponent( return_ ) )
-				}
-			}
 			return return_
 		}
 		setConfig( options ){
 			LoadConfig.setValues( globalConfig , options )
 		}
-		regComps( app , path_array , options = {}){
-			if( !globalVue() ){
-				return
-			}
-
-			const is_vue_app = app.component instanceof Function
-			const load_config = globalConfig.clone()
-			LoadConfig.setValues( load_config , options )
-
+		loaders( path_array , options = {}){
+			const ret = []
 			for( let item of path_array ){
 				let path , alias = ''
 				if( Array.isArray( item ) ){
@@ -207,20 +194,28 @@
 				else{
 					path = item
 				}
-				const clone_load_config = load_config.clone()
-				clone_load_config.alias = alias
-
-				let res = this.load( path , clone_load_config ),
-				cmp = globalVue().defineAsyncComponent( res )
-
-				if( is_vue_app ){
-					app.component( res.name, cmp )
-				}
-				else{
-					if( !app.components ){
-						app.components = {}
-					}
-					app.components[ res.name ] = cmp
+				const clone_load_config = globalConfig.clone( { ...options , alias })
+				ret.push( this.load( path , clone_load_config ) )
+			}
+			return ret
+		}
+		compsObject(){
+			if( !globalVue() ){
+				throw new Error( "缺少vue" )
+			}
+			return this.loaders.apply( this , arguments ).reduce( ( ret , item ) =>{
+				ret[ item.name ] = globalVue().defineAsyncComponent( item )
+				return ret
+			} ,{})
+		}
+		compsPlugin(){
+			if( !globalVue() ){
+				throw new Error( "缺少vue" )
+			}
+			const loaders = this.loaders.apply( this , arguments )
+			return {
+				install( app ){
+					loaders.forEach( item => app.component( item.name , globalVue().defineAsyncComponent( item ) ) )
 				}
 			}
 		}
