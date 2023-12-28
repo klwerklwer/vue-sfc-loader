@@ -42,6 +42,11 @@
 	function globalVue(){
 		return globalThis.Vue
 	}
+	function validateGlobalVue(){
+		if( !globalVue() ){
+			throw new Error( '缺少vue' )
+		}
+	}
 
 	//本体
 	globalThis.vueSfcLoader = new class{
@@ -194,24 +199,23 @@
 				else{
 					path = item
 				}
-				const clone_load_config = globalConfig.clone( { ...options , alias })
-				ret.push( this.load( path , clone_load_config ) )
+				ret.push( this.load( path , { ...options , alias } ) )
 			}
 			return ret
 		}
-		compsObject(){
-			if( !globalVue() ){
-				throw new Error( "缺少vue" )
-			}
+		comp(){
+			validateGlobalVue()
+			return globalVue().defineAsyncComponent( this.load.apply( this , arguments ) )
+		}
+		comps(){
+			validateGlobalVue()
 			return this.loaders.apply( this , arguments ).reduce( ( ret , item ) =>{
 				ret[ item.name ] = globalVue().defineAsyncComponent( item )
 				return ret
 			} ,{})
 		}
 		compsPlugin(){
-			if( !globalVue() ){
-				throw new Error( "缺少vue" )
-			}
+			validateGlobalVue()
 			const loaders = this.loaders.apply( this , arguments )
 			return {
 				install( app ){
