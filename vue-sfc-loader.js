@@ -93,8 +93,7 @@
 				const component_data = {}
 	
 				//创建document
-				const doc = document.implementation.createHTMLDocument('')
-				doc.body.innerHTML = file_content
+				const doc = (new DOMParser).parseFromString( file_content , 'text/html' )
 
 				/**
 				 * 处理脚本
@@ -102,7 +101,7 @@
 				 * 含有src属性的脚本会被动态加入到页面上,这样的脚本可以有多个,且async属性是false的脚本视为同步,
 				 * exports的脚本会在同步后执行
 				 */
-				const script_elts = doc.body.querySelectorAll( 'script' )
+				const script_elts = doc.querySelectorAll( 'script' )
 				let script_promise = Promise.resolve()
 				if( script_elts.length ){
 					script_promise = (async()=>{
