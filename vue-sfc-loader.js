@@ -6,11 +6,10 @@
 		 * @param {object} values 
 		 */
 		constructor( values = {} ){
-			//预加载
-			this.preload = true
 			this.baseUrl = ''
 			//组件别名 重命名
 			this.alias = ''
+			this.queryString = ''
 			this.constructor.setValues( this , values )
 		}
 		/**
@@ -48,6 +47,22 @@
 		}
 	}
 
+	const loadedUrls = new Set
+
+	function addQueryString( url , queryString ){
+		if( !url || !queryString ){
+			return url
+		}
+		if( !url.includes("?") ){
+			url += "?"
+		}
+
+		return url + "&" + queryString
+	}
+
+	const loadedResult = new Map
+	
+
 	//本体
 	globalThis.vueSfcLoader = new class{
 		/**
@@ -75,15 +90,21 @@
 			if( baseUrl[ baseUrl.length - 1 ] != "/"  && url[0] != "/" ){
 				baseUrl += "/"
 			}
+			const { queryString } = load_config
+
 			//完整资源路径
-			const uri = baseUrl + url + urn + query_params
-			const component_name = load_config.alias || urn.substring( 0 , urn.length - 4 )
+			const uri = addQueryString( baseUrl + url + urn + query_params , queryString )
+
+			if( loadedResult.has( uri ) ){
+				return loadedResult.get( uri )
+			}
+			const componentName = load_config.alias || urn.substring( 0 , urn.length - 4 )
 	
 			/**
-			 * 加载器
+			 * 
 			 * @returns {Promise}
 			 */
-			let loader = async function (){
+			const componentLoader = async function(){
 				const file_promise = await fetch( uri )
 				if( !file_promise.ok ){
 					throw Object.assign( new Error( file_promise.statusText + ' ' + uri), { file_promise } )
@@ -94,6 +115,10 @@
 	
 				//创建document
 				const doc = (new DOMParser).parseFromString( file_content , 'text/html' )
+
+				if( !doc.querySelector("base") ){
+					doc.head.appendChild( doc.createElement( "base" ) ).href = baseUrl
+				}
 
 				/**
 				 * 处理脚本
@@ -110,6 +135,13 @@
 						let main_script
 						for( let elt of script_elts ){
 							if( elt.src ){
+								let src = addQueryString( elt.src , queryString )
+								if( loadedUrls.has( src ) ){
+									continue
+								}
+								else{
+									loadedUrls.add( src )
+								}
 								/**
 								 * 直接使用源elt插入时,src不请求,不知道原因
 								 * cloneNode(true) 得到的elt 也是同样的问题, 不得已只能创建elt赋值属性
@@ -117,7 +149,7 @@
 								const clone_elt = document.createElement( 'script' )
 								clone_elt.async = elt.async
 								clone_elt.defer = elt.defer
-								clone_elt.src = elt.src
+								clone_elt.src = src
 								if( !clone_elt.async ){
 									script_load_promises.push(
 										new Promise( (resolve) => {
@@ -127,6 +159,7 @@
 									)
 								}
 								document.head.append( clone_elt )
+
 							}
 							else if( elt.textContent.trim() && !main_script ){
 								//exports 脚本 , 参数的内容其实可以魔改
@@ -143,9 +176,32 @@
 								exports : {}
 							}
 							main_script.call( globalThis , module , baseUrl + url )
-							Object.assign( component_data , module.exports )
+							
+							if( module.exports ){
+								//处理异步组件继承
+								if( module.exports.extends?.__asyncLoader ){
+									const asyncCompOptions = module.exports.extends.__asyncResolved ?? await module.exports.extends.__asyncLoader()
+									module.exports.props = {
+										...asyncCompOptions.props,
+										...module.exports.props,
+									}
+								}
+								Object.assign( component_data , module.exports )
+							}
+							
 						}
 					})();
+				}
+
+				const link_elt = doc.querySelectorAll("link")
+				for( let elt of link_elt ){
+					let href = addQueryString( elt.href , queryString )
+				    if( href && !loadedUrls.has( href ) ){
+						const link = elt.cloneNode()
+						link.href = href
+						document.head.append( link )
+						loadedUrls.add( href )
+					}
 				}
 	
 				//template
@@ -163,9 +219,11 @@
 				//style
 				const style_elt = doc.querySelector( 'style' )
 				if( style_elt && style_elt.textContent.trim() ){
-					document.head.append( style_elt )
 					if( !style_elt.id ){
-						style_elt.id = "async_" + component_name + "_style"
+						style_elt.id = "async_" + componentName + "_style"
+						if( !document.querySelector("style#" + style_elt.id) ){
+							document.head.append( style_elt )
+						}
 					}
 				}
 				await script_promise
@@ -173,54 +231,65 @@
 				return component_data
 			}
 
-			let return_ = {
-				name : component_name ,
+			const result = {
+				name: componentName,
+				loader: componentLoader,
+				component: null,
+				getComponent(){
+					if( !this.component ){
+						validateGlobalVue()
+						this.component = globalVue().defineAsyncComponent(this.loader)
+					}
+					return this.component
+				},
 			}
-			if( load_config.preload ){
-				loader = loader()
-				return_.loader = ()=> loader
-			}
-			else{
-				return_.loader = loader
-			}
-			return return_
+
+			loadedResult.set( uri , result )
+			return result
 		}
 		setConfig( options ){
 			LoadConfig.setValues( globalConfig , options )
 		}
-		loaders( path_array , options = {}){
-			const ret = []
-			for( let item of path_array ){
-				let path , alias = ''
-				if( Array.isArray( item ) ){
-					[ path , alias = '' ] = item
+		comp(){
+			const component = _this.load.apply( _this , arguments ).getComponent()
+			component.__asyncLoader()
+			return component
+		}
+		delyComp(){
+			return _this.load.apply( _this , arguments ).getComponent()
+		}
+		comps( configs ){
+			const ret = {}
+			configs.forEach( configIt =>{
+				let path , options = {}
+				const typeof_ = typeof configIt
+				if( Array.isArray( configIt )){
+					path = configIt[0]
+					options.alias = configIt[1]
 				}
-				else{
-					path = item
+				else if( typeof_ == "object" ){
+					path = configIt.path
+					options = configIt
 				}
-				ret.push( this.load( path , { ...options , alias } ) )
-			}
+				else if( typeof_ == "string" ){
+					path = configIt
+				}
+				const loaderResult = _this.load( path , options )
+				const component = loaderResult.getComponent()
+				component.__asyncLoader()
+				ret[ loaderResult.name ] = component
+			})
 			return ret
 		}
-		comp(){
-			validateGlobalVue()
-			return globalVue().defineAsyncComponent( this.load.apply( this , arguments ) )
-		}
-		comps(){
-			validateGlobalVue()
-			return this.loaders.apply( this , arguments ).reduce( ( ret , item ) =>{
-				ret[ item.name ] = globalVue().defineAsyncComponent( item )
-				return ret
-			} ,{})
-		}
-		compsPlugin(){
-			validateGlobalVue()
-			const loaders = this.loaders.apply( this , arguments )
+		compsPlugin( configs ){
 			return {
 				install( app ){
-					loaders.forEach( item => app.component( item.name , globalVue().defineAsyncComponent( item ) ) )
+					const comps = _this.comps.call( _this , configs )
+					Object.keys( comps )
+					.forEach( name => app.component( name , comps[ name ] ) )
 				}
 			}
 		}
 	}
-})()
+	const _this = vueSfcLoader
+})();
